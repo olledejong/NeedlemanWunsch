@@ -4,24 +4,15 @@
  * increasing gap penalty.
  */
 #include <iostream>
-#include <fstream>
-#include <vector>
-#include <exception>
 #include <algorithm>
-#include <cstdlib>
-#include <cmath>
 #include <chrono>
+#include <vector>
 
 using namespace std;
 using namespace chrono;
 
 // Globals
 int matchScore, mismatchScore, gapScore;
-int lengthA, lengthB;
-string SeqA, SeqB;
-
-// Initial Needleman-Wunsch matrix - for now the max dimensions are set to 1000 x 1000
-int nwMatrix[1000][1000];
 
 /**
  * Compute the Needleman-Wunsch matrix
@@ -34,14 +25,19 @@ int nwMatrix[1000][1000];
  * C  -4  -2   0   0   1   1   2
  * T  -5  -3  -1  -1   0   2   1
  * A  -6  -4  -2  -2  -1   1   3
+ *
  * @return the maximum score of the matrix
  */
-int needlemanWunsch() {
-    // Set the values of the first row and the first column
-    // This way the penalty of the gap increases linearly with the length
-    for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = nwMatrix[0][i] = -i * gapScore;
-    // Loop through every cell except for the already filled first row and column
-    // This is done by filling row by row.
+vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
+    // create the 'empty' matrix
+    const int lengthA = SeqA.size(), lengthB = SeqB.size();
+    vector<int> row((lengthB + 1), 0);
+    vector<vector<int>> nwMatrix((lengthA + 1), row);
+    // Set the values of the first row and the first column to a multiple of the gap penalty
+    // TODO; can this be done more efficiently?
+    for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = -i * gapScore;
+    for (int i = 0; i <= lengthB; i++) nwMatrix[0][i] = -i * gapScore;
+    // Loop through every cell except for the already filled first row and column. This is done column by column.
     for (int i = 1; i <= lengthA; i++) {
         for (int j = 1; j <= lengthB; j++) {
             // If the previous characters are equal, assign S to matchScore (1), else to mismatchScore (-1)
@@ -53,23 +49,24 @@ int needlemanWunsch() {
             //    Depending on whether it is a match or a mismatch.
             // 2. A vertical gap results in the highest score (the above neighbouring cell - gapScore)
             // 3. A horizontal gap results in the highest score (the left neighbouring cell - gapScore)
-            nwMatrix[i][j] = max(
-                    nwMatrix[i - 1][j - 1] + S,
-                    max(nwMatrix[i - 1][j] - gapScore, nwMatrix[i][j - 1] - gapScore)
-            );
+            nwMatrix[i][j] = max({
+                                         nwMatrix[i - 1][j - 1] + S,
+                                         nwMatrix[i - 1][j] - gapScore,
+                                         nwMatrix[i][j - 1] - gapScore
+                                 });
         }
     }
     // only return the maximum score of the alignmnent
-    return nwMatrix[lengthA][lengthB];
+    return nwMatrix;
 }
 
 /**
  * Simple function that generates visual representation of the Needleman-Wunsch matrix and
  * prints it to the console.
  */
-void printMatrix() {
-    for (int i = 0; i <= lengthA; ++i) {
-        for (int j = 0; j <= lengthB; j++) {
+void printMatrix(const vector<vector<int>> &nwMatrix) {
+    for (int i = 0; i < nwMatrix.size(); ++i) {
+        for (int j = 0; j < nwMatrix[0].size(); j++) {
             printf("%d\t", nwMatrix[i][j]);
         }
         printf("\n");
@@ -83,9 +80,9 @@ void printMatrix() {
  *
  * @return the optimal alignment based on the scores defined in main()
  */
-pair<string, string> getAlignment() {
+pair<string, string> getAlignment(const vector<vector<int>> &nwMatrix, const string &SeqA, const string &SeqB) {
     string alignmentPartA, alignmentPartB;
-    int iA = lengthA, iB = lengthB;
+    int iA = SeqA.size(), iB = SeqB.size();
     // loop as long as both strings have not been fully processed
     while (iA != 0 || iB != 0) {
         // if the end of string A has been hit, then that strand can only produce a gap.
@@ -137,21 +134,22 @@ int main() {
     matchScore = 1;
     mismatchScore = 1;
     gapScore = 1;
-    SeqA = "CACATA", SeqB = "CAGCTA";
-    lengthA = SeqA.size(), lengthB = SeqB.size(); // set lengths of seqs globally
+    string SeqA = "CACATA", SeqB = "CAGCTATA";
+    int lengthA = SeqA.size(), lengthB = SeqB.size(); // set lengths of seqs globally
 
     // get time at beginning of alignment
     auto t1 = high_resolution_clock::now();
 
     // compute the needleman-wunsch matrix for the given sequences
-    needlemanWunsch();
+    auto nwMatrix = needlemanWunsch(SeqA, SeqB);
     // uncomment the next line to see the generated matrix as well
-//    printMatrix();
+    printMatrix(nwMatrix);
 
     // get the optimal alignment
-    pair<string, string> alignment = getAlignment();
-    printf("With rules; match: +%d, mismatch: -%d and gap: -%d, the given optimal alignment is:\n%s\n%s\n",
-           matchScore, mismatchScore, gapScore, alignment.first.c_str(), alignment.second.c_str());
+    pair<string, string> alignment = getAlignment(nwMatrix, SeqA, SeqB);
+    printf("With rules; match: +%d, mismatch: -%d and gap: -%d, the given optimal alignment with a Needleman-Wunsch"
+           " score of %d is:\n\n\t%s\n\t%s\n\n", matchScore, mismatchScore, gapScore, nwMatrix[lengthA][lengthB],
+           alignment.first.c_str(), alignment.second.c_str());
 
     // get time at end of alignment
     auto t2 = high_resolution_clock::now();
