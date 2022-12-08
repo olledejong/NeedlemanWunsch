@@ -50,10 +50,10 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
             // 2. A vertical gap results in the highest score (the above neighbouring cell - gapScore)
             // 3. A horizontal gap results in the highest score (the left neighbouring cell - gapScore)
             nwMatrix[i][j] = max({
-                                         nwMatrix[i - 1][j - 1] + S,
-                                         nwMatrix[i - 1][j] - gapScore,
-                                         nwMatrix[i][j - 1] - gapScore
-                                 });
+                nwMatrix[i - 1][j - 1] + S,
+                nwMatrix[i - 1][j] - gapScore,
+                nwMatrix[i][j - 1] - gapScore
+            });
         }
     }
     // only return the maximum score of the alignmnent
