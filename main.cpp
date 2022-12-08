@@ -143,7 +143,7 @@ int main() {
     // compute the needleman-wunsch matrix for the given sequences
     auto nwMatrix = needlemanWunsch(SeqA, SeqB);
     // uncomment the next line to see the generated matrix as well
-    printMatrix(nwMatrix);
+//    printMatrix(nwMatrix);
 
     // get the optimal alignment
     pair<string, string> alignment = getAlignment(nwMatrix, SeqA, SeqB);
