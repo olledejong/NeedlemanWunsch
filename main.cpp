@@ -4,6 +4,9 @@
  * increasing gap penalty.
  */
 #include <iostream>
+#include <fstream>
+#include <sys/stat.h>
+#include <filesystem>
 #include <algorithm>
 #include <chrono>
 #include <vector>
@@ -34,7 +37,6 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     vector<int> row((lengthB + 1), 0);
     vector<vector<int>> nwMatrix((lengthA + 1), row);
     // Set the values of the first row and the first column to a multiple of the gap penalty
-    // TODO; can this be done more efficiently?
     for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = -i * gapScore;
     for (int i = 0; i <= lengthB; i++) nwMatrix[0][i] = -i * gapScore;
     // Loop through every cell except for the already filled first row and column. This is done column by column.
@@ -58,19 +60,6 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     }
     // only return the maximum score of the alignmnent
     return nwMatrix;
-}
-
-/**
- * Simple function that generates visual representation of the Needleman-Wunsch matrix and
- * prints it to the console.
- */
-void printMatrix(const vector<vector<int>> &nwMatrix) {
-    for (int i = 0; i < nwMatrix.size(); ++i) {
-        for (int j = 0; j < nwMatrix[0].size(); j++) {
-            printf("%d\t", nwMatrix[i][j]);
-        }
-        printf("\n");
-    }
 }
 
 /**
@@ -129,44 +118,81 @@ pair<string, string> getAlignment(const vector<vector<int>> &nwMatrix, const str
     return {alignmentPartA, alignmentPartB};
 }
 
-pair<string, string> getUserInput() {
-    string SeqA, SeqB;
-    cout << "Please paste your first sequence here and hit enter: " << endl; cin >> SeqA;
-    cout << "Please paste your second sequence here and hit enter: " << endl; cin >> SeqB;
+/**
+ * Reads the first two sequences from a by the user given FASTA file.
+ * If the file does not exist, or if the file does not contain at least two sequences, then
+ * an error is thrown and the program is terminated.
+ *
+ * @return a pair containing sequence A and B
+ */
+pair<string, string> readFastaFile() {
+    // check if the input file exists at all
+    printf("Your current working directory is: %s\n", std::filesystem::current_path().c_str());
+    printf("NOTE: If the sequences are substantial, the alignment might take a while.\n"
+           "Please enter the relative path to the FASTA file: ");
+    string filename; cin >> filename;
+    struct stat buffer{};
+    if (stat(filename.c_str(), &buffer) != 0) throw logic_error("That file does not exist, aborting..");
 
-    // TODO maybe change the setting of the penalties to a switch option (basic / specific scores for combinations)
-    matchScore = 1;
-    mismatchScore = 1;
-    gapScore = 1;
+    // check if file is in correct format and contains two sequences
+    ifstream fastaFile(filename);
+    string line, SeqA, SeqB;
+    int count = 0;
+    while ( getline(fastaFile, line) ) {
+        if (line[0] != '>') {
+            switch(count) {
+                case 1:
+                    SeqA += line;
+                    break;
+                case 2:
+                    SeqB += line;
+                    break;
+                default:
+                    continue;
+            }
+        } else {
+            ++count;
+        }
+    }
+    // close the file
+    fastaFile.close();
+
+    // if not both strings are filled, throw an error
+    if (SeqA.empty() || SeqB.empty()) throw logic_error("The file does not contain two sequences, aborting..");
 
     return {SeqA, SeqB};
 }
 
 // program starts here
 int main() {
-    pair<string,string> inputSeqs = getUserInput();
+    try {
+        pair<string, string> inputSeqs = readFastaFile();
+        string SeqA = inputSeqs.first, SeqB = inputSeqs.second;
+        int lengthA = SeqA.size(), lengthB = SeqB.size();
 
-    string SeqA = inputSeqs.first, SeqB = inputSeqs.second;
-    int lengthA = SeqA.size(), lengthB = SeqB.size();
+        matchScore = 1;
+        mismatchScore = 1;
+        gapScore = 1;
 
-    // get time at beginning of alignment
-    auto t1 = high_resolution_clock::now();
+        // get time at beginning of alignment
+        auto t1 = high_resolution_clock::now();
 
-    // compute the needleman-wunsch matrix for the given sequences
-    auto nwMatrix = needlemanWunsch(SeqA, SeqB);
-    // uncomment the next line to see the generated matrix as well
-//    printMatrix(nwMatrix);
+        // compute the needleman-wunsch matrix for the given sequences
+        auto nwMatrix = needlemanWunsch(SeqA, SeqB);
 
-    // get the optimal alignment
-    pair<string, string> alignment = getAlignment(nwMatrix, SeqA, SeqB);
-    printf("With rules; match: +%d, mismatch: -%d and gap: -%d, the given optimal alignment with a Needleman-Wunsch"
-           " score of %d is:\n\n\t%s\n\t%s\n\n", matchScore, mismatchScore, gapScore, nwMatrix[lengthA][lengthB],
-           alignment.first.c_str(), alignment.second.c_str());
+        // get the optimal alignment
+        pair<string, string> alignment = getAlignment(nwMatrix, SeqA, SeqB);
+        printf("With rules; match: +%d, mismatch: -%d and gap: -%d, the given optimal alignment with a Needleman-Wunsch"
+               " score of %d is:\n\n\t%s\n\t%s\n\n", matchScore, mismatchScore, gapScore, nwMatrix[lengthA][lengthB],
+               alignment.first.c_str(), alignment.second.c_str());
 
-    // get time at end of alignment
-    auto t2 = high_resolution_clock::now();
-    duration<double, std::milli> ms_double = t2 - t1;
-    printf("This alignment took %f ms.", ms_double.count());
-
+        // report duration of alignment
+        auto t2 = high_resolution_clock::now();
+        duration<double, std::milli> ms_double = t2 - t1;
+        printf("This alignment took %f ms.", ms_double.count());
+    } catch (const logic_error &error) {
+        cerr << error.what() << endl;
+        exit(EXIT_FAILURE);
+    }
     exit(EXIT_SUCCESS);
 }
