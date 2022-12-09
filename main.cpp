@@ -100,7 +100,7 @@ pair<string, string> getAlignment(const vector<vector<int>> &nwMatrix, const str
             // if the next characters of strings are equal, set S = matchScore, else S = mismatchScore
             bool charsMatch = SeqA[iA - 1] == SeqB[iB - 1];
             int S = charsMatch ? matchScore : -mismatchScore;
-            // if the previous diagonal cell + S is equal to the iterated cell, then this must be the
+            // if the previous diagonal cell + S is equal to the iterated cell, then this must be the optimal way
             if (nwMatrix[iA][iB] == (nwMatrix[iA - 1][iB - 1] + S )) {
                 alignmentPartA += SeqA[iA - 1];
                 alignmentPartB += SeqB[iB - 1];
@@ -129,13 +129,25 @@ pair<string, string> getAlignment(const vector<vector<int>> &nwMatrix, const str
     return {alignmentPartA, alignmentPartB};
 }
 
-// program starts here
-int main() {
+pair<string, string> getUserInput() {
+    string SeqA, SeqB;
+    cout << "Please paste your first sequence here and hit enter: " << endl; cin >> SeqA;
+    cout << "Please paste your second sequence here and hit enter: " << endl; cin >> SeqB;
+
+    // TODO maybe change the setting of the penalties to a switch option (basic / specific scores for combinations)
     matchScore = 1;
     mismatchScore = 1;
     gapScore = 1;
-    string SeqA = "CACATA", SeqB = "CAGCTATA";
-    int lengthA = SeqA.size(), lengthB = SeqB.size(); // set lengths of seqs globally
+
+    return {SeqA, SeqB};
+}
+
+// program starts here
+int main() {
+    pair<string,string> inputSeqs = getUserInput();
+
+    string SeqA = inputSeqs.first, SeqB = inputSeqs.second;
+    int lengthA = SeqA.size(), lengthB = SeqB.size();
 
     // get time at beginning of alignment
     auto t1 = high_resolution_clock::now();
