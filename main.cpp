@@ -1,7 +1,5 @@
 /*
- * Initial, simplistic version of the Needleman Wunsch algorithm for alignment.
- * No fancy stuff, just a scoring of 1 for a match, -1 for a mismatch and a linearly
- * increasing gap penalty.
+ * Implementation of the Needleman and Wunsch algorithm for alignment of two strings.
  */
 #include <iostream>
 #include <fstream>
@@ -17,6 +15,7 @@ using namespace chrono;
 
 // Globals
 int gapPenalty;
+vector<pair<string,string>> possibleOptimalAlignments;
 
 // Map for base-wise match scores. Purine -> Purine or Pyrimidine -> Pyrimidine swaps produce a smaller penalty
 map<pair<char,char>, int> baseWiseScore {
@@ -111,14 +110,13 @@ void printMatrix(const vector<vector<int>> &nwMatrix) {
  * @param alignPartB the second part of the already aligned strings (alt alignment is picked up from there)
  * @return a pair containing the alternate optimal alignment
  */
-pair<string,string> getAltAlignment(const vector<vector<int>> &nwMatrix,
+void getAltAlignment(const vector<vector<int>> &nwMatrix,
                                     int iA,
                                     int iB,
                                     const string &SeqA,
                                     const string &SeqB,
                                     string altOutA,
                                     string altOutB) {
-
     // instead of adding gap in seq A, add a gap in seq B
     altOutA += SeqA[iA - 1];
     altOutB += '-';
@@ -154,16 +152,24 @@ pair<string,string> getAltAlignment(const vector<vector<int>> &nwMatrix,
                 iA--;
                 // if the value of cell to the left of the iterated cell is higher than the value of
                 // the cell above the iterated cell, then add a gap in sequence A.
-            } else {
+            } else if (nwMatrix[iA - 1][iB] < nwMatrix[iA][iB - 1]) {
+                altOutA += '-';
+                altOutB += SeqB[iB - 1];
+                iB--;
+            } else if (nwMatrix[iA - 1][iB] == nwMatrix[iA][iB - 1]) {
+                // every time there are two equal options in gap creation, then get the alternate alignment as well
+                getAltAlignment(nwMatrix, iA, iB, SeqA, SeqB, altOutA, altOutA);
+                // Prefer gap creation in sequence A.
                 altOutA += '-';
                 altOutB += SeqB[iB - 1];
                 iB--;
             }
         }
     }
+    // reverse and add to final output list
     reverse(altOutA.begin(), altOutA.end());
     reverse(altOutB.begin(), altOutB.end());
-    return {altOutA, altOutB};
+    possibleOptimalAlignments.emplace_back(altOutA, altOutB);
 }
 
 /**
@@ -176,8 +182,7 @@ pair<string,string> getAltAlignment(const vector<vector<int>> &nwMatrix,
  * @param SeqB the original sequence B
  * @return the optimal alignment based on the scores defined in main()
  */
-vector<pair<string, string>> getAlignment(const vector<vector<int>> &nwMatrix, const string &SeqA, const string &SeqB) {
-    vector<pair<string,string>> possibleAlignments;
+void getAlignment(const vector<vector<int>> &nwMatrix, const string &SeqA, const string &SeqB) {
     string outA, outB;
     int iA = SeqA.size(), iB = SeqB.size();
     // loop as long as both strings have not been fully processed
@@ -216,7 +221,7 @@ vector<pair<string, string>> getAlignment(const vector<vector<int>> &nwMatrix, c
                 iB--;
             } else if (nwMatrix[iA - 1][iB] == nwMatrix[iA][iB - 1]) {
                 // every time there are two equal options in gap creation, then get the alternate alignment as well
-                possibleAlignments.push_back(getAltAlignment(nwMatrix, iA, iB, SeqA, SeqB, outA, outB));
+                getAltAlignment(nwMatrix, iA, iB, SeqA, SeqB, outA, outB);
                 // Prefer gap creation in sequence A.
                 outA += '-';
                 outB += SeqB[iB - 1];
@@ -227,10 +232,9 @@ vector<pair<string, string>> getAlignment(const vector<vector<int>> &nwMatrix, c
     // since we handled the sequences backwards, we have to reverse them for correct representation
     reverse(outA.begin(), outA.end());
     reverse(outB.begin(), outB.end());
-    possibleAlignments.emplace_back(outA, outB);
 
-    // return the optimal alignment pair
-    return possibleAlignments;
+    // add the optimal alignment pair
+    possibleOptimalAlignments.emplace_back(outA, outB);
 }
 
 /**
@@ -295,9 +299,9 @@ int main() {
         auto nwMatrix = needlemanWunsch(SeqA, SeqB);
 
         // get the optimal alignment
-        vector<pair<string, string>> alignments = getAlignment(nwMatrix, SeqA, SeqB);
+        getAlignment(nwMatrix, SeqA, SeqB);
         printf("The given optimal alignment(s) with a Needleman-Wunsch score of %d is/are:\n", nwMatrix[lengthA][lengthB]);
-        for (const auto &item: alignments) {
+        for (const auto &item: possibleOptimalAlignments) {
             printf("\n\t%s\n\t%s\n", item.first.c_str(), item.second.c_str());
         }
 
