@@ -14,8 +14,6 @@ using namespace chrono;
 // Globals
 int matchScore, mismatchScore, gapScore;
 
-void getAltOptAlignment(const vector<vector<int>> &nwMatrix, int iA, int iB, string alignPartA, string alignPartB);
-
 /**
  * Compute the Needleman-Wunsch matrix
  * For example: CACATA and CAGCTA, with scores 1, -1 and -1, for match, mismatch and gap respectively:
@@ -91,15 +89,13 @@ void printMatrix(const vector<vector<int>> &nwMatrix) {
  * @param alignPartB the second part of the already aligned strings (alt alignment is picked up from there)
  * @return a pair containing the alternate optimal alignment
  */
-pair<string,string> getAltOptAlignment(const vector<vector<int>> &nwMatrix,
-                        int iA,
-                        int iB,
-                        const string &SeqA,
-                        const string &SeqB,
-                        string alignPartA,
-                        string alignPartB) {
-
-    string altOutA = alignPartA, altOutB = alignPartB;
+pair<string,string> getAltAlignment(const vector<vector<int>> &nwMatrix,
+                                    int iA,
+                                    int iB,
+                                    const string &SeqA,
+                                    const string &SeqB,
+                                    string altOutA,
+                                    string altOutB) {
 
     // instead of adding gap in seq A, add a gap in seq B
     altOutA += SeqA[iA - 1];
@@ -199,7 +195,7 @@ vector<pair<string, string>> getAlignment(const vector<vector<int>> &nwMatrix, c
                 iB--;
             } else if (nwMatrix[iA - 1][iB] == nwMatrix[iA][iB - 1]) {
                 // every time there are two equal options in gap creation, then get the alternate alignment as well
-                possibleAlignments.push_back(getAltOptAlignment(nwMatrix, iA, iB, SeqA, SeqB, outA, outB));
+                possibleAlignments.push_back(getAltAlignment(nwMatrix, iA, iB, SeqA, SeqB, outA, outB));
                 // Prefer gap creation in sequence A.
                 outA += '-';
                 outB += SeqB[iB - 1];
