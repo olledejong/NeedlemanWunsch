@@ -1,6 +1,8 @@
 /*
  * Implementation of the Needleman and Wunsch algorithm for alignment of two strings.
  */
+
+// builtin includes
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
@@ -8,34 +10,17 @@
 #include <algorithm>
 #include <chrono>
 #include <vector>
-#include <map>
+
+// file includes
+#include "charchar-maps.h"
 
 using namespace std;
 using namespace chrono;
 
 // Globals
+bool areProteinSeqs;
 int gapPenalty;
 vector<pair<string,string>> possibleOptimalAlignments;
-
-// Map for base-wise match scores. Purine -> Purine or Pyrimidine -> Pyrimidine swaps produce a smaller penalty
-map<pair<char,char>, int> baseWiseScore {
-        {{'A','A'}, 10},
-        {{'A','G'}, -1},
-        {{'A','C'}, -3},
-        {{'A','T'}, -4},
-        {{'G','A'}, -1},
-        {{'G','G'}, 7},
-        {{'G','C'}, -5},
-        {{'G','T'}, -3},
-        {{'C','A'}, -3},
-        {{'C','G'}, -5},
-        {{'C','C'}, 9},
-        {{'C','T'}, 0},
-        {{'T','A'}, -4},
-        {{'T','G'}, -3},
-        {{'T','C'}, 0},
-        {{'T','T'}, 8},
-};
 
 /**
  * Compute the Needleman-Wunsch matrix
@@ -292,9 +277,10 @@ int main() {
         // set gap score
         gapPenalty = 5;
 
-        // get time at beginning of alignment
+        // 'start timer' for duration of alignment
         auto t1 = high_resolution_clock::now();
 
+        areProteinSeqs = (SeqA.find('M') != std::string::npos && SeqB.find('M') != std::string::npos);
         // compute the needleman-wunsch matrix for the given sequences
         auto nwMatrix = needlemanWunsch(SeqA, SeqB);
 
