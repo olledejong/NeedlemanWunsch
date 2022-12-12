@@ -16,7 +16,7 @@ using namespace std;
 using namespace chrono;
 
 // Globals
-int gapScore;
+int gapPenalty;
 
 // Map for base-wise match scores. Purine -> Purine or Pyrimidine -> Pyrimidine swaps produce a smaller penalty
 map<pair<char,char>, int> baseWiseScore {
@@ -58,8 +58,8 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     vector<int> row((lengthB + 1), 0);
     vector<vector<int>> nwMatrix((lengthA + 1), row);
     // Set the values of the first row and the first column to a multiple of the gap penalty
-    for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = -i * gapScore;
-    for (int i = 0; i <= lengthB; i++) nwMatrix[0][i] = -i * gapScore;
+    for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = -i * gapPenalty;
+    for (int i = 0; i <= lengthB; i++) nwMatrix[0][i] = -i * gapPenalty;
     // Loop through every cell except for the already filled first row and column. This is done column by column.
     for (int i = 1; i <= lengthA; i++) {
         for (int j = 1; j <= lengthB; j++) {
@@ -69,12 +69,12 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
             // and set the iterated cell to that value. There are three options:
             // 1. A match/mismatch results in the highest score (previous diagonal + matchScore or - mismatchScore)
             //    Depending on whether it is a match or a mismatch.
-            // 2. A vertical gap results in the highest score (the above neighbouring cell - gapScore)
-            // 3. A horizontal gap results in the highest score (the left neighbouring cell - gapScore)
+            // 2. A vertical gap results in the highest score (the above neighbouring cell - gapPenalty)
+            // 3. A horizontal gap results in the highest score (the left neighbouring cell - gapPenalty)
             nwMatrix[i][j] = max({
                 nwMatrix[i - 1][j - 1] + S,
-                nwMatrix[i - 1][j] - gapScore,
-                nwMatrix[i][j - 1] - gapScore
+                nwMatrix[i - 1][j] - gapPenalty,
+                nwMatrix[i][j - 1] - gapPenalty
             });
         }
     }
@@ -286,7 +286,7 @@ int main() {
         int lengthA = SeqA.size(), lengthB = SeqB.size();
 
         // set gap score
-        gapScore = 5;
+        gapPenalty = 5;
 
         // get time at beginning of alignment
         auto t1 = high_resolution_clock::now();
