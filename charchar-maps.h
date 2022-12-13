@@ -4,7 +4,7 @@ using namespace std;
 
 // DNA: Map containing specific base:base alignment scores.
 // Purine -> Purine or Pyrimidine -> Pyrimidine swaps produce a smaller penalty
-map<pair<char,char>, int> baseWiseScore {
+map<pair<char,char>, int> bbScores {
     {{'A','A'}, 10},
     {{'A','G'}, -1},
     {{'A','C'}, -3},
@@ -23,9 +23,8 @@ map<pair<char,char>, int> baseWiseScore {
     {{'T','T'}, 8},
 };
 
-// Protein: Map containing specific amino-acid:amino-acid alignment scores.
-map<pair<char,char>, int> blosum62 {
-    // row 1
+// Protein: BLOSUM62 Map containing specific amino-acid:amino-acid alignment scores.
+map<pair<char,char>, int> aaScores {
     {{'A','A'}, 4},
     {{'R','A'}, -1},
     {{'R','R'}, 5},
