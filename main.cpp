@@ -113,18 +113,19 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     const int lengthA = SeqA.size(), lengthB = SeqB.size();
     vector<int> row((lengthB + 1), 0);
     vector<vector<int>> nwMatrix((lengthA + 1), row);
-    // Set the values of the first row and the first column to a multiple of the gap penalty
+
+    // set values of first and second column to multiple of gap penalty
     for (int i = 0; i <= lengthA; i++) nwMatrix[i][0] = -i * gapPenalty;
     for (int i = 0; i <= lengthB; i++) nwMatrix[0][i] = -i * gapPenalty;
-    // Loop through every cell except for the already filled first row and column. This is done column by column.
+
+    // loop through all other cells and fill those
     for (int i = 1; i <= lengthA; i++) {
         for (int j = 1; j <= lengthB; j++) {
-            // grab the score for the two compared chars from the map
+            // grab the score for the pair of chars
             int S;
             pair<char, char> charPair = {SeqA[i - 1], SeqB[j - 1]};
             proteinSeqs ? S = bbScores[charPair] : S = aaScores[charPair];
-            // Check which movement (down, right or diagonal) results in the highest score for the iterated cell.
-            // and set the iterated cell to that value.
+            // check which movement (down, right or diagonal) results in the highest score and set iterated cell to it.
             nwMatrix[i][j] = max({
                 nwMatrix[i - 1][j - 1] + S,
                 nwMatrix[i - 1][j] - gapPenalty,
@@ -132,7 +133,6 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
             });
         }
     }
-    // only return the maximum score of the alignmnent
     return nwMatrix;
 }
 
@@ -183,15 +183,15 @@ void getAlignment(const vector<vector<int>> &nwMatrix,
                 outA += SeqA[iA - 1];
                 outB += SeqB[iB - 1];
                 iA--; iB--;
-                // if the next characters of the strings are not equal, then check if the value of the above cell has a
-                // higher value than the value of the cell to the left. If so, add a gap to sequence B.
+            // if the next characters of the strings are not equal, then check if the value of the above cell has a
+            // higher value than the value of the cell to the left. If so, add a gap to sequence B.
             } else if (nwMatrix[iA - 1][iB] > nwMatrix[iA][iB - 1]) {
                 outA += SeqA[iA - 1];
                 outB += '-';
                 // only subtract from the iterator you add an actual character to
                 iA--;
-                // if the value of cell to the left of the iterated cell is higher than the value of
-                // the cell above the iterated cell, then add a gap in sequence A.
+            // if the value of cell to the left of the iterated cell is higher than the value of
+            // the cell above the iterated cell, then add a gap in sequence A.
             } else if (nwMatrix[iA - 1][iB] < nwMatrix[iA][iB - 1]) {
                 outA += '-';
                 outB += SeqB[iB - 1];
@@ -199,7 +199,7 @@ void getAlignment(const vector<vector<int>> &nwMatrix,
             } else if (nwMatrix[iA - 1][iB] == nwMatrix[iA][iB - 1]) {
                 // every time there are two equal options in gap creation, then get the alternate alignment as well
                 getAlignment(nwMatrix, SeqA, SeqB, iA, iB, outA, outB, true);
-                // Prefer gap creation in sequence A.
+                // prefer gap creation in sequence A.
                 outA += '-';
                 outB += SeqB[iB - 1];
                 iB--;
