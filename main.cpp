@@ -11,16 +11,35 @@
 #include <chrono>
 #include <vector>
 
-// file includes
+// header includes
 #include "charchar-maps.h"
 
 using namespace std;
 using namespace chrono;
 
 // Globals
-bool areProteinSeqs;
+string filename;
+bool doPrintMatrix;
+bool proteinSeqs;
 int gapPenalty;
 vector<pair<string,string>> possibleOptimalAlignments;
+
+/**
+ * Simple function that generates visual representation of the Needleman-Wunsch matrix and
+ * prints it to the console.
+ *
+ * @param nwMatrix the Needleman-Wunsch matrix
+ */
+void printMatrix(const vector<vector<int>> &nwMatrix) {
+    printf("\n");
+    for (int i = 0; i < nwMatrix.size(); ++i) {
+        for (int j = 0; j < nwMatrix[0].size(); j++) {
+            printf("%d\t", nwMatrix[i][j]);
+        }
+        printf("\n\n");
+    }
+    printf("\n");
+}
 
 /**
  * Compute the Needleman-Wunsch matrix
@@ -34,6 +53,8 @@ vector<pair<string,string>> possibleOptimalAlignments;
  * T  -5  -3  -1  -1   0   2   1
  * A  -6  -4  -2  -2  -1   1   3
  *
+ * @param SeqA the first string of the alignment
+ * @param SeqB the second string of the alignment
  * @return the maximum score of the matrix
  */
 vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
@@ -48,13 +69,11 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     for (int i = 1; i <= lengthA; i++) {
         for (int j = 1; j <= lengthB; j++) {
             // grab the score for the two compared chars from the map
-            int S = baseWiseScore[{SeqA[i - 1], SeqB[j - 1]}];
+            int S;
+            pair<char, char> charPair = {SeqA[i - 1], SeqB[j - 1]};
+            proteinSeqs ? S = baseWiseScore[charPair] : S = blosum62[charPair];
             // Check which movement (down, right or diagonal) results in the highest score for the iterated cell.
-            // and set the iterated cell to that value. There are three options:
-            // 1. A match/mismatch results in the highest score (previous diagonal + matchScore or - mismatchScore)
-            //    Depending on whether it is a match or a mismatch.
-            // 2. A vertical gap results in the highest score (the above neighbouring cell - gapPenalty)
-            // 3. A horizontal gap results in the highest score (the left neighbouring cell - gapPenalty)
+            // and set the iterated cell to that value.
             nwMatrix[i][j] = max({
                 nwMatrix[i - 1][j - 1] + S,
                 nwMatrix[i - 1][j] - gapPenalty,
@@ -65,20 +84,6 @@ vector<vector<int>> needlemanWunsch(const string &SeqA, const string &SeqB) {
     // only return the maximum score of the alignmnent
     return nwMatrix;
 }
-
-/**
- * Simple function that generates visual representation of the Needleman-Wunsch matrix and
- * prints it to the console.
- */
-void printMatrix(const vector<vector<int>> &nwMatrix) {
-    for (int i = 0; i < nwMatrix.size(); ++i) {
-        for (int j = 0; j < nwMatrix[0].size(); j++) {
-            printf("%d\t", nwMatrix[i][j]);
-        }
-        printf("\n");
-    }
-}
-
 
 /**
  * Once it has been noticed that there are two optimal alignments to be retrieved from the nwMatrix,
@@ -122,7 +127,9 @@ void getAltAlignment(const vector<vector<int>> &nwMatrix,
         } else {
             // if the next characters of strings are equal, set S = matchScore, else S = mismatchScore
             // grab the score for the two compared chars from the map
-            int S = baseWiseScore[{SeqA[iA - 1], SeqB[iB - 1]}];
+            int S;
+            pair<char, char> charPair = {SeqA[iA - 1], SeqB[iB - 1]};
+            proteinSeqs ? S = baseWiseScore[charPair] : S = blosum62[charPair];
             // if the previous diagonal cell + S is equal to the iterated cell, then this must be the
             if (nwMatrix[iA][iB] == (nwMatrix[iA - 1][iB - 1] + S )) {
                 altOutA += SeqA[iA - 1];
@@ -158,7 +165,7 @@ void getAltAlignment(const vector<vector<int>> &nwMatrix,
 }
 
 /**
- * This function loops until there are no characters left to process. During the loops we step through
+ * This function loops until both sequences have been fully processed. During the loops we step through
  * the already generated Needleman-Wunsch matrix called nwMatrix. Every loop we determine what direction
  * has the highest value, we take that route, and logically add the characters to the return strings.
  *
@@ -185,7 +192,9 @@ void getAlignment(const vector<vector<int>> &nwMatrix, const string &SeqA, const
             // compare two characters
         } else {
             // grab the score for the two compared chars from the map
-            int S = baseWiseScore[{SeqA[iA - 1], SeqB[iB - 1]}];
+            int S;
+            pair<char, char> charPair = {SeqA[iA - 1], SeqB[iB - 1]};
+            proteinSeqs ? S = baseWiseScore[charPair] : S = blosum62[charPair];
             // if the previous diagonal cell + S is equal to the iterated cell, then this must be the optimal way
             if (nwMatrix[iA][iB] == (nwMatrix[iA - 1][iB - 1] + S )) {
                 outA += SeqA[iA - 1];
@@ -230,11 +239,6 @@ void getAlignment(const vector<vector<int>> &nwMatrix, const string &SeqA, const
  * @return a pair containing sequence A and B
  */
 pair<string, string> readFastaFile() {
-    // check if the input file exists at all
-    printf("Your current working directory is: %s\n", std::filesystem::current_path().c_str());
-    printf("NOTE: If the sequences are substantial, the alignment might take a while.\n"
-           "Please enter the relative path to the FASTA file: ");
-    string filename; cin >> filename;
     struct stat buffer{};
     if (stat(filename.c_str(), &buffer) != 0) throw logic_error("That file does not exist, aborting..");
 
@@ -267,22 +271,35 @@ pair<string, string> readFastaFile() {
     return {SeqA, SeqB};
 }
 
+/**
+ * Collects user settings through the command line and stores these in globals.
+ */
+void getUserSettings() {
+    // check if the input file exists at all
+    printf("Your current working directory is: %s\n", std::filesystem::current_path().c_str());
+    printf("NOTE: If the sequences are substantial, the alignment might take a while.\n"
+           "Please enter the relative path to the FASTA file: ");
+    cin >> filename;
+    printf("Do you want the Needleman-Wunsch matrix to be printed? [ 0/1 ]: "); cin >> doPrintMatrix;
+    printf("What should be the (linear) gap penalty?: "); cin >> gapPenalty;
+}
+
 // program starts here
 int main() {
     try {
+        getUserSettings();
         pair<string, string> inputSeqs = readFastaFile();
         string SeqA = inputSeqs.first, SeqB = inputSeqs.second;
         int lengthA = SeqA.size(), lengthB = SeqB.size();
 
-        // set gap score
-        gapPenalty = 5;
-
         // 'start timer' for duration of alignment
         auto t1 = high_resolution_clock::now();
 
-        areProteinSeqs = (SeqA.find('M') != std::string::npos && SeqB.find('M') != std::string::npos);
+        proteinSeqs = (SeqA.find('M') != std::string::npos && SeqB.find('M') != std::string::npos);
+        proteinSeqs ? printf("We're working with amino-acids.\n") : printf("We're working with nucleotides.\n");
         // compute the needleman-wunsch matrix for the given sequences
         auto nwMatrix = needlemanWunsch(SeqA, SeqB);
+        if (doPrintMatrix) printMatrix(nwMatrix);
 
         // get the optimal alignment
         getAlignment(nwMatrix, SeqA, SeqB);
