@@ -1,27 +1,28 @@
 /*
  * Implementation of the Needleman and Wunsch algorithm for alignment of two strings.
- * By Olle de Jong
+ * The user can either choose to perform a global, or local alignment. The user can also set the gap penalty.
+ *
+ * Contents
+ *    [ charchar-maps.h ][ contains two scoring matrices (in map form), one for DNA, and one for protein ]
+ *    [ user-input.h ][ contains logic related to user-input (filepath, gap-penalty, FASTA file reading) ]
+ *    [ main.cpp ][ contains the main logic responsible for generating the (global/local) alignment ]
+ *
+ * By Olle de Jong on 20/12/2022
  */
 
-// ====== Includes ====== //
-#include <iostream>
-#include <fstream>
-#include <sys/stat.h>
-#include <filesystem>
-#include <algorithm>
-#include <chrono>
-#include <vector>
-#include "charchar-maps.h"
-using namespace std;
-using namespace chrono;
+// ====== Includes ======= //
+#include <iostream>        //
+#include <algorithm>       //
+#include <chrono>          //
+#include <vector>          //
+#include "charchar-maps.h" // scoring matrixes for global alignment
+#include "user-input.h"    // contains functions related to user-input
+using namespace std;       //
+using namespace chrono;    //
+// ======================= //
 
 // ====== Globals ====== //
-string filename;                                      // relative path to the FASTA file
-bool doPrintMatrix;                                  // user setting; print computed matrix or not
-int gapPenalty;                                      // user setting; height of gap penalty
-char globalOrLocal;                                  // user setting; determines whether doing global or local alignment
-bool proteinSeqs;                                    // true; working with protein seqs, else; working with dna
-vector<pair<string,string>> possibleAlignments;      // vector that holds pairs of all possible optimal alignments
+vector<pair<string,string>> possibleAlignments; // vector that holds pairs of all possible optimal alignments
 
 /**
  * Simple function that generates visual representation of the Needleman-Wunsch matrix and
@@ -41,70 +42,9 @@ void printMatrix(const vector<vector<int>> &nwMatrix) {
 }
 
 /**
- * Collects user settings through the command line and stores these in globals.
- */
-void getUserSettings() {
-    // check if the input file exists at all
-    printf("Your current working directory is: %s\n", std::filesystem::current_path().c_str());
-    printf("NOTE: If the sequences are substantial, the alignment might take a while.\n"
-           "Please enter the relative path to the FASTA file: "); cin >> filename;
-    printf("Would you like perform a global, or local alignment? [ g/l ]: "); cin >> globalOrLocal;
-    printf("Do you want the matrix to be printed? [ 0/1 ]: "); cin >> doPrintMatrix;
-    printf("What should be the (linear) gap penalty?: "); cin >> gapPenalty;
-    if (gapPenalty < 1) gapPenalty = 1;
-}
-
-/**
- * Reads the first two sequences from a by the user given FASTA file.
- * If the file does not exist, or if the file does not contain at least two sequences, then
- * an error is thrown and the program is terminated.
- *
- * @return a pair containing sequence A and B
- */
-pair<string, string> readFastaFile() {
-    struct stat buffer{};
-    if (stat(filename.c_str(), &buffer) != 0) throw logic_error("That file does not exist, aborting..");
-
-    // check if file is in correct format and contains two sequences
-    ifstream fastaFile(filename);
-    string line, SeqA, SeqB;
-    int count = 0;
-    while ( getline(fastaFile, line) ) {
-        if (line[0] != '>') {
-            switch(count) {
-                case 1:
-                    SeqA += line;
-                    break;
-                case 2:
-                    SeqB += line;
-                    break;
-                default:
-                    continue;
-            }
-        } else {
-            ++count;
-        }
-    }
-    // close the file
-    fastaFile.close();
-
-    // if not both strings are filled, throw an error
-    if (SeqA.empty() || SeqB.empty()) throw logic_error("The file does not contain two sequences, aborting..");
-
-    return {SeqA, SeqB};
-}
-
-/**
- * Compute the Needleman-Wunsch matrix
- * For example: CACATA and CAGCTA, with scores 1, -1 and -1, for match, mismatch and gap respectively:
- *         C   A   C   A   T   A
- *     0  -1  -2  -3  -4  -5  -6
- * C  -1   1   0  -1  -2  -3  -4
- * A  -2   0   2   1   0  -1  -2
- * G  -3  -1   1   1   2   1   0
- * C  -4  -2   0   0   1   1   2
- * T  -5  -3  -1  -1   0   2   1
- * A  -6  -4  -2  -2  -1   1   3
+ * Computes the Needleman-Wunsch matrix for the purpose of global alignment.
+ * Scores are taken from the bbScores or aaScores map, which are located in the
+ * 'charchar-maps.h' header file.
  *
  * @param SeqA the first string of the alignment
  * @param SeqB the second string of the alignment
@@ -215,7 +155,7 @@ void getAlignmentNW(const vector<vector<int>> &nwMatrix,
 }
 
 /**
- * Computing the Smith-Waterman matrix for the purpose of local alignment.
+ * Computes the Smith-Waterman matrix for the purpose of local alignment.
  * In contrary to Needleman Wunsch, this algorithm usualy does not work with scoring
  * matrices, instead, the scores are +1 and -1 for a match and mismatch, respectively.
  * Also, all negative outcome values are set to 0. So are the first row and column.
@@ -371,7 +311,6 @@ int main() {
         auto t1 = high_resolution_clock::now();
 
         // report whether we are working with nucleotide or protein sequences
-        proteinSeqs = (SeqA.find('M') != std::string::npos && SeqB.find('M') != std::string::npos);
         proteinSeqs ? printf("We're working with amino-acids.\n") : printf("We're working with nucleotides.\n");
 
         // compute the matrix for the given sequences and get the possible alignments
