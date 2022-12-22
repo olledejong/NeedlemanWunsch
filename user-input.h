@@ -21,9 +21,8 @@ bool proteinSeqs;        // true; working with protein seqs, else; working with 
  */
 void getUserSettings() {
     // check if the input file exists at all
-    printf("Your current working directory is: %s\n", std::filesystem::current_path().c_str());
     printf("NOTE: If the sequences are substantial, the alignment might take a while.\n"
-           "Please enter the relative path to the FASTA file: "); cin >> filename;
+           "Please enter the ALBOSULTE path to the FASTA file containing both sequences: "); getline(cin, filename);
     printf("Would you like perform a global, or local alignment? [ g/l ]: "); cin >> globalOrLocal;
     printf("Do you want the matrix to be printed? [ 0/1 ]: "); cin >> doPrintMatrix;
     printf("What should be the (linear) gap penalty?: "); cin >> gapPenalty;
